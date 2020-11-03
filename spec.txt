@@ -1,0 +1,6 @@
+Write a command-line tool using the asyncio library that takes a file with a URL per line as input.
+The program should make GET requests to each URL, without blocking on a response.
+As output, it should print (in the order the requests are returned, as soon as they are returned) the time taken for
+each request and its HTTP status code.
+Finally, it should output the mean, median, and 90th percentile response times.
+Be sure to handle cases where some URLs are invalid or when the server doesn't respond.

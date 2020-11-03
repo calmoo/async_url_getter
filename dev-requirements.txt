@@ -1,0 +1,4 @@
+Pytest
+mypy
+pytest-cov
+flake8
