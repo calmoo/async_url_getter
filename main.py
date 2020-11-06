@@ -1,40 +1,37 @@
 import asyncio
 import aiohttp
 from asyncio.exceptions import TimeoutError
-from aiohttp.client_exceptions import InvalidURL, ClientConnectorError, ServerDisconnectedError, ClientError
+from aiohttp.client_exceptions import (
+    InvalidURL,
+    ClientConnectorError,
+    ServerDisconnectedError,
+    ClientError,
+)
 import time
+from typing import List
+from pathlib import Path
+
 
 class RequestInfo:
     """
-    Details of a process.
-    Total time is separate from start time and end time because there could be
-    system clock changes while running the process.
+    Details of a request.
     """
-    def __init__(
-        self, url: str, total_time: float, status_code: int
-    ):
+
+    def __init__(self, url: str, total_time: float, status_code: int):
         self.url = url
         self.status_code = status_code
         self.total_time = total_time
 
-    def __repr__(self):
-        results = f"Request to {self.url} took "
-        return f"{self.url} {self.status_code} {self.total_time}"
 
-
-async def get(session: aiohttp.ClientSession, url: str, timeout: int) -> RequestInfo:
+async def get(
+    session: aiohttp.ClientSession, url: str, timeout: int
+) -> RequestInfo:
     """
-    Raises:
-        ...
-        ...
+
     """
     start_time_monotonic = time.monotonic()
-    print(time.time())
-
-    async with session.get(url=url, timeout=timeout) as response:
+    async with session.get(url=url, timeout=timeout, allow_redirects=False) as response:
         await response.read()
-
-
     end_time_monotonic = time.monotonic()
     total_time = end_time_monotonic - start_time_monotonic
     status_code = response.status
@@ -46,36 +43,40 @@ async def get(session: aiohttp.ClientSession, url: str, timeout: int) -> Request
 
     return request_stats
 
-async def main(url_list) -> None:
+
+async def main(url_list: List[str], timeout: int) -> List[RequestInfo]:
     connector = aiohttp.TCPConnector(limit=1000)
-    async with aiohttp.ClientSession(connector=connector) as session:
+    async with aiohttp.ClientSession(connector=connector, auto_decompress=False) as session:
         tasks = []
         results = []
-        for c in url_list:
-            tasks.append(get(session=session, url=c, timeout=10))
+        for url in url_list:
+            tasks.append(get(session=session, url=url, timeout=timeout))
 
         for t in asyncio.as_completed(tasks):
             try:
                 result = await t
             except TimeoutError:
-                print("timed out")
+                print(f"Requested timed out after {timeout} seconds")
             except ClientConnectorError:
-                print(f"invalid url")
+                print(f"Invalid url")
             else:
                 line_printer(result)
                 results.append(result)
 
         return results
 
+
 def line_printer(result: RequestInfo) -> None:
     rounded_time = round(result.total_time, 4)
-    output_string = f"Request to {result.url} responded with " \
-                    f"{result.status_code} " \
-                    f"and took {rounded_time} seconds to complete"
+    output_string = (
+        f"Request to {result.url} responded with "
+        f"{result.status_code} "
+        f"and took {rounded_time} seconds to complete"
+    )
     print(output_string)
 
 
-if __name__ == '__main__':
-    with open('url_list.txt') as f:
-        url_list = f.read().splitlines()
-    print(asyncio.run(main(url_list[:100])))
+if __name__ == "__main__":
+    p = Path('url_list.txt')
+    url_list = p.read_text().splitlines()
+    print(asyncio.run(main(url_list=url_list, timeout=10)))
