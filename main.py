@@ -1,5 +1,6 @@
 import asyncio
 import textwrap
+import click
 from statistics import mean, quantiles, median
 
 import aiohttp
@@ -42,7 +43,9 @@ async def get(
     return request_stats
 
 
-async def main(url_list: List[str], timeout: int, limit: int) -> List[RequestInfo]:
+async def main(
+    url_list: List[str], timeout: int, limit: int
+) -> List[RequestInfo]:
     connector = aiohttp.TCPConnector(limit=limit)
     async with aiohttp.ClientSession(
         connector=connector, auto_decompress=False
@@ -102,17 +105,27 @@ class Metrics:
         )
         output_summary = textwrap.dedent(
             f"""\
+            -----
             Mean response time = {mean_millis}ms
             Median response time = {median_millis}ms
             90th percentile of response times = {ninetieth_percentile_millis}ms
             """
-            )
+        )
         return output_summary
 
 
-if __name__ == "__main__":
-    p = Path("url_list.txt")
+@click.command()
+@click.argument("file")
+@click.option("--t", default=15, help="Maximum time for a request to finish")
+@click.option("--par", default=100, help="Maximum number of parallel requests")
+def cli(file, t, par):
+    click.echo(t)
+    p = Path(file)
     url_list = p.read_text().splitlines()
-    request_info = asyncio.run(main(url_list=url_list, timeout=10, limit=1000))
+    request_info = asyncio.run(main(url_list=url_list, timeout=t, limit=par))
     metrics = Metrics(request_info=request_info)
     print(metrics.summary())
+
+
+if __name__ == "__main__":
+    cli()
