@@ -23,7 +23,8 @@ class RequestInfo:
         results = f"Request to {self.url} took "
         return f"{self.url} {self.status_code} {self.total_time}"
 
-async def get(session: aiohttp.ClientSession, url: str) -> RequestInfo:
+
+async def get(session: aiohttp.ClientSession, url: str, timeout: int) -> RequestInfo:
     """
     Raises:
         ...
@@ -32,7 +33,7 @@ async def get(session: aiohttp.ClientSession, url: str) -> RequestInfo:
     start_time_monotonic = time.monotonic()
     print(time.time())
     try:
-        async with session.get(url=url, timeout=30) as response:
+        async with session.get(url=url, timeout=timeout) as response:
             await response.read()
     except TimeoutError:
         print(f"{url} timed out")
@@ -58,7 +59,7 @@ async def main(url_list) -> None:
         tasks = []
         results = []
         for c in url_list:
-            tasks.append(get(session=session, url=c, ))
+            tasks.append(get(session=session, url=c, timeout=30))
         for t in asyncio.as_completed(tasks):
             result = await t
             if result:
@@ -76,6 +77,6 @@ def line_printer(result: RequestInfo) -> None:
 
 
 if __name__ == '__main__':
-    with open('url_list.txt') as f:
+    with open('url_list_dup.txt') as f:
         url_list = f.read().splitlines()
     print(asyncio.run(main(url_list[:100])))
