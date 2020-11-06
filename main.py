@@ -109,7 +109,7 @@ class Metrics:
             Mean response time = {mean_millis}ms
             Median response time = {median_millis}ms
             90th percentile of response times = {ninetieth_percentile_millis}ms
-            """
+            """ # noqa: E501
         )
         return output_summary
 
