@@ -118,7 +118,7 @@ class Metrics:
 @click.argument("file")
 @click.option("--t", default=15, help="Maximum time for a request to finish")
 @click.option("--par", default=100, help="Maximum number of parallel requests")
-def cli(file, t, par):
+def cli(file, t, par) -> None:
     click.echo(t)
     p = Path(file)
     url_list = p.read_text().splitlines()
