@@ -1,12 +1,14 @@
 import asyncio
 import textwrap
 import click
-from statistics import mean, quantiles, median
-
-import aiohttp
-from asyncio.exceptions import TimeoutError
-from aiohttp.client_exceptions import ClientConnectorError
+import sys
 import time
+import aiohttp
+import click_pathlib
+
+from asyncio.exceptions import TimeoutError
+from statistics import mean, quantiles, median
+from aiohttp.client_exceptions import ClientConnectorError, InvalidURL
 from typing import List
 from pathlib import Path
 
@@ -16,7 +18,7 @@ class RequestInfo:
     Details of a request.
     """
 
-    def __init__(self, url: str, total_time: float, status_code: int):
+    def __init__(self, url: str, total_time: float, status_code: int) -> None:
         self.url = url
         self.status_code = status_code
         self.total_time = total_time
@@ -25,11 +27,17 @@ class RequestInfo:
 async def get(
     session: aiohttp.ClientSession, url: str, timeout: int
 ) -> RequestInfo:
-
+    """
+    This makes a non-blocking get request to the ``url`` provided.
+    It times out after ``timeout`` seconds.
+    It returns ``RequestInfo`` containing the url the request was made to,
+    the status code of the request and total time taken for the request to
+    complete. If the request does not complete, an exception is raised and does
+    not return ``RequestInfo``. ``time.monotonic`` is used to avoid
+    system clock changes during timing.
+    """
     start_time_monotonic = time.monotonic()
-    async with session.get(
-        url=url, timeout=timeout, allow_redirects=False
-    ) as response:
+    async with session.get(url=url, timeout=timeout) as response:
         await response.read()
     end_time_monotonic = time.monotonic()
     total_time = end_time_monotonic - start_time_monotonic
@@ -43,40 +51,49 @@ async def get(
     return request_stats
 
 
-async def main(
-    url_list: List[str], timeout: int, limit: int
-) -> List[RequestInfo]:
-    connector = aiohttp.TCPConnector(limit=limit)
-    async with aiohttp.ClientSession(
-        connector=connector, auto_decompress=False
-    ) as session:
+async def main(url_list: List[str], timeout: int) -> List[RequestInfo]:
+    """
+    This parses a list of urls from ```url_list``` and schedules a request
+    for each url to be made asynchronously. As each request completes, a
+    RequestInfo object is added to a list. Once all requests have
+    completed or the ``timeout`` value specified has been exceeded, the list
+    of RequestInfo objects is returned.
+    Any exceptions raised from the get requests are handled here, and prints
+    a message to stdout.
+    """
+    async with aiohttp.ClientSession(auto_decompress=False) as session:
         tasks = []
         results = []
         for url in url_list:
             tasks.append(get(session=session, url=url, timeout=timeout))
 
-        for t in asyncio.as_completed(tasks):
+        for task in asyncio.as_completed(tasks):
             try:
-                result = await t
+                result = await task
             except TimeoutError:
                 print(f"Requested timed out after {timeout} seconds")
             except ClientConnectorError:
-                print(f"Invalid url")
+                print("Connection error")
+            except InvalidURL:
+                print("Invalid URL")
             else:
-                line_printer(result)
+                print(get_request_details(result))
                 results.append(result)
 
         return results
 
 
-def line_printer(result: RequestInfo) -> None:
+def get_request_details(result: RequestInfo) -> str:
+    """
+    Returns a human readable string using the details from ``RequestInfo``
+    """
     rounded_time_millis = round(result.total_time * 1000, 3)
     output_string = (
         f"Request to {result.url} responded with "
         f"{result.status_code} "
         f"and took {rounded_time_millis}ms to complete"
     )
-    print(output_string)
+    return output_string
 
 
 class Metrics:
@@ -86,18 +103,15 @@ class Metrics:
 
     def __init__(self, request_info: List[RequestInfo]):
         self.request_info = request_info
-        self.response_times = self._response_times()
+        self.response_times = [item.total_time for item in self.request_info]
         self.mean = mean(self.response_times)
         self.median = median(self.response_times)
         self.ninetieth_percentile = quantiles(self.response_times, n=10)[-1]
 
-    def _response_times(self) -> List[float]:
-        response_times = []
-        for item in self.request_info:
-            response_times.append(item.total_time)
-        return response_times
-
     def summary(self) -> str:
+        """
+        Generates metrics of request times and returns a string.
+        """
         mean_millis = round(self.mean * 1000, 3)
         median_millis = round(self.median * 1000, 3)
         ninetieth_percentile_millis = round(
@@ -109,23 +123,35 @@ class Metrics:
             Mean response time = {mean_millis}ms
             Median response time = {median_millis}ms
             90th percentile of response times = {ninetieth_percentile_millis}ms
-            """ # noqa: E501
+            """  # noqa: E501
         )
         return output_summary
 
 
 @click.command()
-@click.argument("file")
-@click.option("--t", default=15, help="Maximum time for a request to finish")
-@click.option("--par", default=100, help="Maximum number of parallel requests")
-def cli(file, t, par) -> None:
-    click.echo(t)
-    p = Path(file)
-    url_list = p.read_text().splitlines()
-    request_info = asyncio.run(main(url_list=url_list, timeout=t, limit=par))
-    metrics = Metrics(request_info=request_info)
-    print(metrics.summary())
+@click.argument("file", type=click_pathlib.Path(exists=True))
+@click.option(
+    "--timeout", "-t", default=15, help="Maximum time for a request to finish"
+)
+def cli(file: Path, timeout: int) -> None:
+    """
+    We use click to ingest a text ``file`` of newline separated URLs.
+    A ``timeout`` is specified for the maximum time a request can take to
+    complete.
+    The program exits if the file is empty, and a message is printed if there
+    are less than two data points to calculate metrics.
+    """
+    url_list = file.read_text().splitlines()
+    if len(url_list) < 1:
+        sys.exit("File is empty")
+
+    request_info = asyncio.run(main(url_list=url_list, timeout=timeout))
+    if len(request_info) > 1:
+        metrics = Metrics(request_info=request_info)
+        print(metrics.summary())
+    else:
+        print("Two or more successful requests needed to generate metrics.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     cli()
