@@ -1,6 +1,6 @@
 http://www.youtubecom
 https://www.facebook.com
-http://www.baidu.com
+baidu.com
 http://www.yahoo.com
 http://www.amazon.com
 http://www.wikipedia.org

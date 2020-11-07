@@ -8,7 +8,7 @@ import aiohttp
 from asyncio.exceptions import TimeoutError
 
 import click_pathlib
-from aiohttp.client_exceptions import ClientConnectorError
+from aiohttp.client_exceptions import ClientConnectorError, InvalidURL
 import time
 from typing import List
 from pathlib import Path
@@ -25,10 +25,12 @@ class RequestInfo:
         self.total_time = total_time
 
     def __repr__(self) -> str:
-        return '<RequestInfo: ' + self.url + '>'
+        return "<RequestInfo: " + self.url + ">"
 
 
-async def get(session: aiohttp.ClientSession, url: str, timeout: int) -> RequestInfo:
+async def get(
+    session: aiohttp.ClientSession, url: str, timeout: int
+) -> RequestInfo:
     start_time_monotonic = time.monotonic()
     async with session.get(url=url, timeout=timeout) as response:
         await response.read()
@@ -56,8 +58,10 @@ async def main(url_list: List[str], timeout: int) -> List[RequestInfo]:
                 result = await task
             except TimeoutError:
                 print(f"Requested timed out after {timeout} seconds")
-            except ClientConnectorError as e:
-                print(f"Invalid url")
+            except ClientConnectorError:
+                print("Connection error")
+            except InvalidURL:
+                print("Invalid URL")
             else:
                 print(get_request_details(result))
                 results.append(result)
@@ -90,7 +94,9 @@ class Metrics:
     def summary(self) -> str:
         mean_millis = round(self.mean * 1000, 3)
         median_millis = round(self.median * 1000, 3)
-        ninetieth_percentile_millis = round(self.ninetieth_percentile * 1000, 3)
+        ninetieth_percentile_millis = round(
+            self.ninetieth_percentile * 1000, 3
+        )
         output_summary = textwrap.dedent(
             f"""\
             -----
@@ -102,10 +108,11 @@ class Metrics:
         return output_summary
 
 
-
 @click.command()
 @click.argument("file", type=click_pathlib.Path(exists=True))
-@click.option("--timeout", "-t", default=15, help="Maximum time for a request to finish")
+@click.option(
+    "--timeout", "-t", default=15, help="Maximum time for a request to finish"
+)
 def cli(file: Path, timeout: int) -> None:
     url_list = file.read_text().splitlines()
     if len(url_list) < 1:
