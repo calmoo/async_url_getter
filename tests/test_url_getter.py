@@ -1,4 +1,5 @@
 import pytest
+from _pytest.capture import CaptureFixture
 from aiohttp import ClientConnectorError, InvalidURL
 import time
 from main import get, main, cli, Metrics, RequestInfo
@@ -9,17 +10,20 @@ from aiohttp.client_reqrep import ConnectionKey
 import asyncio
 from click.testing import CliRunner
 from textwrap import dedent
-from pathlib import Path
+from pathlib import Path, PosixPath
+from typing import Any
 
 
 @pytest.fixture
-def mock_aioresponse():
+def mock_aioresponse() -> aioresponses:
     with aioresponses() as response:
         yield response
 
 
 class TestCLI:
-    def test_file_input_valid(self, tmp_path, mock_aioresponse) -> None:
+    def test_file_input_valid(
+        self, tmp_path: PosixPath, mock_aioresponse: aioresponses
+    ) -> None:
         """
         A file containing at least one line can be parsed
         """
@@ -41,7 +45,7 @@ class TestCLI:
         assert expected_output in result.output
         assert result.exit_code == 0
 
-    def test_file_input_invalid(self, tmp_path) -> None:
+    def test_file_input_invalid(self, tmp_path: PosixPath) -> None:
         """
         An empty file returns an error and the output is halted
         """
@@ -56,7 +60,9 @@ class TestCLI:
         assert expected_output in result.output
         assert result.exit_code == 1
 
-    def test_no_metrics(self, tmp_path, mock_aioresponse) -> None:
+    def test_no_metrics(
+        self, tmp_path: PosixPath, mock_aioresponse: aioresponses
+    ) -> None:
         """
         Metrics are not returned without at least two data points
         """
@@ -80,7 +86,9 @@ class TestCLI:
         assert expected_output in result.output
         assert result.exit_code == 0
 
-    def test_metrics_output(self, tmp_path, mock_aioresponse) -> None:
+    def test_metrics_output(
+        self, tmp_path: PosixPath, mock_aioresponse: aioresponses
+    ) -> None:
         """
         Metrics are returned with at least two data points
         """
@@ -106,7 +114,9 @@ class TestCLI:
         assert expected_output in result.output
         assert result.exit_code == 0
 
-    def test_timeout_valid(self, tmp_path, mock_aioresponse) -> None:
+    def test_timeout_valid(
+        self, tmp_path: PosixPath, mock_aioresponse: aioresponses
+    ) -> None:
         """
         An integer timeout value can be used
         """
@@ -126,7 +136,9 @@ class TestCLI:
         )
         assert result.exit_code == 0
 
-    def test_timeout_invalid(self, tmp_path, mock_aioresponse) -> None:
+    def test_timeout_invalid(
+        self, tmp_path: PosixPath, mock_aioresponse: aioresponses
+    ) -> None:
         """
         A non-integer timeout value cannot be used
         """
@@ -150,7 +162,7 @@ class TestCLI:
 
 
 class TestGet:
-    async def test_valid_url(self, mock_aioresponse) -> None:
+    async def test_valid_url(self, mock_aioresponse: aioresponses) -> None:
         """
         A request to a valid URL can be made
         """
@@ -164,7 +176,7 @@ class TestGet:
         assert result.total_time < timeout
         assert result.status_code == status
 
-    async def test_timeout(self, mock_aioresponse) -> None:
+    async def test_timeout(self, mock_aioresponse: aioresponses) -> None:
         """
         A request to a valid URL exceeding a timeout raises an exception
         """
@@ -178,13 +190,13 @@ class TestGet:
 
 
 class TestMain:
-    async def test_concurrency(self, mock_aioresponse) -> None:
+    async def test_concurrency(self, mock_aioresponse: aioresponses) -> None:
         """
         Multiple non-blocking requests to URLs can be made in parallel.
         """
         request_delay = 1
 
-        async def delay_request(*args, **kwargs):
+        async def delay_request(*args: Any, **kwargs: Any) -> None:
             await asyncio.sleep(request_delay)
 
         url_1 = "foo.com"
@@ -198,7 +210,7 @@ class TestMain:
         time_taken = round(end - start)
         assert time_taken == request_delay
 
-    async def test_valid_url(self, mock_aioresponse) -> None:
+    async def test_valid_url(self, mock_aioresponse: aioresponses) -> None:
         """
         Details of a single request can be retrieved
         """
@@ -212,7 +224,7 @@ class TestMain:
         assert request_info.url == url
         assert request_info.total_time < 1
 
-    async def test_valid_urls(self, mock_aioresponse) -> None:
+    async def test_valid_urls(self, mock_aioresponse: aioresponses) -> None:
         """
         Details of multiple requests can be retrieved
         """
@@ -234,7 +246,9 @@ class TestMain:
         assert request_info_1.status_code == status_url_1
         assert request_info_2.status_code == status_url_2
 
-    async def test_connection_error(self, mock_aioresponse, capsys) -> None:
+    async def test_connection_error(
+        self, mock_aioresponse: aioresponses, capsys: CaptureFixture
+    ) -> None:
         """
         An exception can be raised if a request results in failure
         """
@@ -259,7 +273,9 @@ class TestMain:
         captured = capsys.readouterr()
         assert captured.out == "Connection error\n"
 
-    async def test_invalid_url(self, mock_aioresponse, capsys) -> None:
+    async def test_invalid_url(
+        self, mock_aioresponse: aioresponses, capsys: CaptureFixture
+    ) -> None:
         """
         An exception can be raised a request is made to an invalid URL
         """
@@ -273,7 +289,7 @@ class TestMain:
         assert captured.out == "Invalid URL\n"
 
     async def test_connection_error_then_valid_url(
-        self, mock_aioresponse
+        self, mock_aioresponse: aioresponses
     ) -> None:
         """
         The program can continue making requests in the event of a connection
@@ -306,7 +322,9 @@ class TestMain:
         assert result[0].status_code == status
         assert result[0].url == valid_url
 
-    async def test_invalid_url_then_valid_url(self, mock_aioresponse) -> None:
+    async def test_invalid_url_then_valid_url(
+        self, mock_aioresponse: aioresponses
+    ) -> None:
         """
         The program can continue making requests in the event of an invalid
         URL exception
@@ -323,6 +341,7 @@ class TestMain:
         assert len(result) == 1
         assert result[0].status_code == status
         assert result[0].url == valid_url
+
 
 class TestMetrics:
     def test_metrics(self) -> None:
