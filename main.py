@@ -122,6 +122,8 @@ def cli(file: Path, timeout: int) -> None:
     if len(request_info) > 1:
         metrics = Metrics(request_info=request_info)
         print(metrics.summary())
+    else:
+        print("Two or more successful requests needed to generate metrics.")
 
 
 if __name__ == "__main__":

@@ -11,8 +11,17 @@ from click.testing import CliRunner
 from textwrap import dedent
 
 
+@pytest.fixture
+def mock_aioresponse():
+    with aioresponses() as response:
+        yield response
+
+
 class TestCLI:
-    def test_file_input_valid(self, tmp_path) -> None:
+    def test_file_input_valid(self, tmp_path, mock_aioresponse) -> None:
+        url = "http://google.com"
+        status = 200
+        mock_aioresponse.get(url, status=status)
         example_file = tmp_path / "example_file.txt"
         file_contents = dedent(
             """\
@@ -21,28 +30,104 @@ class TestCLI:
         )
         example_file.write_text(file_contents)
         runner = CliRunner()
-        # TODO some mocking
-
         result = runner.invoke(
             cli, [str(example_file)], catch_exceptions=False
         )
+        expected_output = "Request to http://google.com responded with 200"
+        assert expected_output in result.output
         assert result.exit_code == 0
-        # assert result.output ==
 
-    def test_file_input_invalid(self) -> None:
-        pass
+    def test_file_input_invalid(self, tmp_path) -> None:
+        example_file = tmp_path / "example_file.txt"
+        file_contents = ""
+        example_file.write_text(file_contents)
+        runner = CliRunner()
+        result = runner.invoke(
+            cli, [str(example_file)], catch_exceptions=False
+        )
+        expected_output = "File is empty\n"
+        assert expected_output in result.output
+        assert result.exit_code == 1
 
-    def test_timeout_valid(self) -> None:
-        pass
+    def test_no_metrics(self, tmp_path, mock_aioresponse) -> None:
+        url = "http://google.com"
+        status = 200
+        mock_aioresponse.get(url, status=status)
+        example_file = tmp_path / "example_file.txt"
+        file_contents = dedent(
+            """\
+            http://google.com
+            """
+        )
+        example_file.write_text(file_contents)
+        runner = CliRunner()
+        result = runner.invoke(
+            cli, [str(example_file)], catch_exceptions=False
+        )
+        expected_output = (
+            "Two or more successful requests needed to generate metrics."
+        )
+        assert expected_output in result.output
+        assert result.exit_code == 0
 
-    def test_timeout_invalid(self) -> None:
-        pass
+    def test_metrics_output(self, tmp_path, mock_aioresponse) -> None:
+        url_1 = "http://google.com"
+        url_2 = "http://test.com"
+        status_1 = 200
+        status_2 = 201
+        mock_aioresponse.get(url_1, status=status_1)
+        mock_aioresponse.get(url_2, status=status_2)
+        example_file = tmp_path / "example_file.txt"
+        file_contents = dedent(
+            """\
+            http://google.com
+            http://test.com
+            """
+        )
+        example_file.write_text(file_contents)
+        runner = CliRunner()
+        result = runner.invoke(
+            cli, [str(example_file)], catch_exceptions=False
+        )
+        expected_output = "Mean response"
+        assert expected_output in result.output
+        assert result.exit_code == 0
 
+    def test_timeout_valid(self, tmp_path, mock_aioresponse) -> None:
+        url = "http://google.com"
+        status = 200
+        mock_aioresponse.get(url, status=status)
+        example_file = tmp_path / "example_file.txt"
+        file_contents = dedent(
+            """\
+            http://google.com
+            """
+        )
+        example_file.write_text(file_contents)
+        runner = CliRunner()
+        result = runner.invoke(
+            cli, [str(example_file), "--timeout", "5"], catch_exceptions=False
+        )
+        assert result.exit_code == 0
 
-@pytest.fixture
-def mock_aioresponse():
-    with aioresponses() as response:
-        yield response
+    def test_timeout_invalid(self, tmp_path, mock_aioresponse) -> None:
+        url = "http://google.com"
+        status = 200
+        mock_aioresponse.get(url, status=status)
+        example_file = tmp_path / "example_file.txt"
+        file_contents = dedent(
+            """\
+            http://google.com
+            """
+        )
+        example_file.write_text(file_contents)
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [str(example_file), "--timeout", "2.5"],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 2
 
 
 class TestGet:
@@ -147,16 +232,16 @@ class TestMain:
 
         url = "foo.com"
         urls = [url]
-        exception = InvalidURL(
-            url=url
-        )
+        exception = InvalidURL(url=url)
         mock_aioresponse.get(url, exception=exception)
         result = await main(url_list=urls, timeout=1)
         assert result == []
         captured = capsys.readouterr()
         assert captured.out == "Invalid URL\n"
 
-    async def test_connection_error_then_valid_url(self, mock_aioresponse) -> None:
+    async def test_connection_error_then_valid_url(
+        self, mock_aioresponse
+    ) -> None:
 
         invalid_url = "barcom"
         valid_url = "foo.com"
@@ -190,9 +275,7 @@ class TestMain:
         valid_url = "foo.com"
         urls = [invalid_url, valid_url]
         status = 200
-        exception = InvalidURL(
-            url=invalid_url
-        )
+        exception = InvalidURL(url=invalid_url)
 
         mock_aioresponse.get(invalid_url, exception=exception)
         mock_aioresponse.get(valid_url, status=status)
