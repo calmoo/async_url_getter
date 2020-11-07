@@ -2,14 +2,13 @@ import asyncio
 import textwrap
 import click
 import sys
-from statistics import mean, quantiles, median
-
-import aiohttp
-from asyncio.exceptions import TimeoutError
-
-import click_pathlib
-from aiohttp.client_exceptions import ClientConnectorError, InvalidURL
 import time
+import aiohttp
+import click_pathlib
+
+from asyncio.exceptions import TimeoutError
+from statistics import mean, quantiles, median
+from aiohttp.client_exceptions import ClientConnectorError, InvalidURL
 from typing import List
 from pathlib import Path
 
@@ -31,6 +30,14 @@ class RequestInfo:
 async def get(
     session: aiohttp.ClientSession, url: str, timeout: int
 ) -> RequestInfo:
+    """
+    This makes a non-blocking get request to the ``url`` provided.
+    It times out after ``timeout`` seconds.
+    It returns ``RequestInfo`` containing the url the request was made to,
+    the status code of the request and total time taken for the request to
+    complete. If the request does not complete, an exception is raised and does
+    not return ``RequestInfo``.
+    """
     start_time_monotonic = time.monotonic()
     async with session.get(url=url, timeout=timeout) as response:
         await response.read()
@@ -47,6 +54,15 @@ async def get(
 
 
 async def main(url_list: List[str], timeout: int) -> List[RequestInfo]:
+    """
+    This parses a list of urls from ```url_list``` and schedules a request
+    for each url to be made asynchronously. As each request completes, a
+    RequestInfo object is added to a list. Once all requests have
+    completed or the ``timeout`` value specified has been exceeded, the list
+    of RequestInfo objects is returned.
+    Any exceptions raised from the get requests are handled here, and prints
+    a message to stdout.
+    """
     async with aiohttp.ClientSession(auto_decompress=False) as session:
         tasks = []
         results = []
@@ -70,6 +86,9 @@ async def main(url_list: List[str], timeout: int) -> List[RequestInfo]:
 
 
 def get_request_details(result: RequestInfo) -> str:
+    """
+    Returns a human readable string using the details from ``RequestInfo``
+    """
     rounded_time_millis = round(result.total_time * 1000, 3)
     output_string = (
         f"Request to {result.url} responded with "
@@ -114,6 +133,13 @@ class Metrics:
     "--timeout", "-t", default=15, help="Maximum time for a request to finish"
 )
 def cli(file: Path, timeout: int) -> None:
+    """
+    We use click to ingest a text ``file`` of newline separated URLs.
+    A ``timeout`` is specified for the maximum time a request can take to
+    complete.
+    The program exits if the file is empty, and a message is printed if there
+    are less than two data points to calculate metrics.
+    """
     url_list = file.read_text().splitlines()
     if len(url_list) < 1:
         sys.exit("File is empty")

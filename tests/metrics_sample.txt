@@ -1,0 +1,4 @@
+-----
+Mean response time = 347.9ms
+Median response time = 347.9ms
+90th percentile of response times = 361.1ms

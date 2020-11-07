@@ -1,4 +1,4 @@
-Pytest
+pytest
 pytest-aiohttp
 mypy
 pytest-cov

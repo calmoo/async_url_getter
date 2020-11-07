@@ -1,4 +1,3 @@
-* Finish existing tests
 * Fill in the README
     - Mention all "decisions" e.g. default timeouts
     - Decision = test thoroughly with mocks + manual testing
