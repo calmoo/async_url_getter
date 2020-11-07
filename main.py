@@ -59,20 +59,20 @@ async def main(url_list: List[str], timeout: int) -> List[RequestInfo]:
             except ClientConnectorError as e:
                 print(f"Invalid url")
             else:
-                line_printer(result)
+                print(get_request_details(result))
                 results.append(result)
 
         return results
 
 
-def line_printer(result: RequestInfo) -> None:
+def get_request_details(result: RequestInfo) -> str:
     rounded_time_millis = round(result.total_time * 1000, 3)
     output_string = (
         f"Request to {result.url} responded with "
         f"{result.status_code} "
         f"and took {rounded_time_millis}ms to complete"
     )
-    print(output_string)
+    return output_string
 
 
 class Metrics:
