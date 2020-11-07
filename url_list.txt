@@ -1,4 +1,4 @@
-http://\www.youtubecom
+http://www.youtubecom
 https://www.facebook.com
 http://www.baidu.com
 http://www.yahoo.com
@@ -98,7 +98,7 @@ http://www.accuweather.com
 http://www.googleweblight.com
 http://www.answers.yahoo.com
 http://www.microsoftonline.com
-http://\www.youtubecom
+http://www.youtubecom
 https://www.facebook.com
 http://www.baidu.com
 http://www.yahoo.com

@@ -3,3 +3,4 @@ pytest-aiohttp
 mypy
 pytest-cov
 flake8
+aioresponses

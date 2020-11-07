@@ -4,5 +4,3 @@ As output, it should print (in the order the requests are returned, as soon as t
 each request and its HTTP status code.
 Finally, it should output the mean, median, and 90th percentile response times.
 Be sure to handle cases where some URLs are invalid or when the server doesn't respond.
-
-# https://docs.aiohttp.org/en/stable/client_advanced.html#client-tracing
