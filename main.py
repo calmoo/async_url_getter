@@ -24,6 +24,9 @@ class RequestInfo:
         self.status_code = status_code
         self.total_time = total_time
 
+    def __repr__(self) -> str:
+        return '<RequestInfo: ' + self.url + '>'
+
 
 async def get(session: aiohttp.ClientSession, url: str, timeout: int) -> RequestInfo:
     start_time_monotonic = time.monotonic()

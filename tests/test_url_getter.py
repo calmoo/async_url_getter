@@ -17,18 +17,11 @@ class TestCLI:
     def test_file_input_invalid(self) -> None:
         pass
 
-    def test_limit_valid(self) -> None:
-        pass
-
-    def test_limit__invalid(self) -> None:
-        pass
-
     def test_timeout_valid(self) -> None:
         pass
 
     def test_timeout_invalid(self) -> None:
         pass
-
 
 @pytest.fixture
 def mock_aioresponse():
@@ -82,11 +75,44 @@ class TestMain:
         urls = [url_1, url_2]
         for url in urls:
             mock_aioresponse.get(url, callback=delay_request)
+            mock_aioresponse.get(url, callback=delay_request)
         start = time.monotonic()
         await main(url_list=urls, timeout=4)
         end = time.monotonic()
         time_taken = round(end - start)
         assert time_taken == request_delay
+
+    async def test_valid_url(self, mock_aioresponse) -> None:
+        url_1 = 'foo.com'
+        urls = [url_1]
+        status = 200
+        mock_aioresponse.get(url_1, status=status)
+        result = await main(url_list=urls, timeout=1)
+        assert len(result) == 1
+        request_info = result[0]
+        assert request_info.status_code == status
+        assert request_info.url == url_1
+        assert request_info.total_time < 1
+
+    async def test_valid_urls(self, mock_aioresponse) -> None:
+        url_1 = 'foo.com'
+        url_2 = 'bar.com'
+        status_url_1 = 200
+        status_url_2 = 201
+        urls = [url_1, url_2]
+        mock_aioresponse.get(url_1, status=status_url_1)
+        mock_aioresponse.get(url_2, status=status_url_2)
+        result = await main(url_list=urls, timeout=1)
+
+        [request_info_1] = [info for info in result if info.url == url_1]
+        [request_info_2] = [info for info in result if info.url == url_2]
+
+        assert request_info_1.total_time < 1
+        assert request_info_2.total_time < 1
+
+        assert request_info_1.status_code == status_url_1
+        assert request_info_2.status_code == status_url_2
+
 
     def test_invalid_url(self) -> None:
         pass
@@ -94,8 +120,6 @@ class TestMain:
     def test_timeout(self) -> None:
         pass
 
-    def test_limit__invalid(self) -> None:
-        pass
 
 
 class TestMetrics:
