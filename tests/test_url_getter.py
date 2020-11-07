@@ -186,7 +186,7 @@ class TestGet:
 
         timeout = 2
         with pytest.raises(TimeoutError):
-            result = await get(session=session, url=url, timeout=timeout)
+            await get(session=session, url=url, timeout=timeout)
 
 
 class TestMain:

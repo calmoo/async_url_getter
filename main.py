@@ -23,9 +23,6 @@ class RequestInfo:
         self.status_code = status_code
         self.total_time = total_time
 
-    def __repr__(self) -> str:
-        return "<RequestInfo: " + self.url + ">"
-
 
 async def get(
     session: aiohttp.ClientSession, url: str, timeout: int
@@ -36,7 +33,8 @@ async def get(
     It returns ``RequestInfo`` containing the url the request was made to,
     the status code of the request and total time taken for the request to
     complete. If the request does not complete, an exception is raised and does
-    not return ``RequestInfo``.
+    not return ``RequestInfo``. ``time.monotonic`` is used to avoid
+    system clock changes during timing.
     """
     start_time_monotonic = time.monotonic()
     async with session.get(url=url, timeout=timeout) as response:
@@ -111,6 +109,9 @@ class Metrics:
         self.ninetieth_percentile = quantiles(self.response_times, n=10)[-1]
 
     def summary(self) -> str:
+        """
+        Generates metrics of request times and returns a string.
+        """
         mean_millis = round(self.mean * 1000, 3)
         median_millis = round(self.median * 1000, 3)
         ninetieth_percentile_millis = round(
@@ -152,5 +153,5 @@ def cli(file: Path, timeout: int) -> None:
         print("Two or more successful requests needed to generate metrics.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     cli()

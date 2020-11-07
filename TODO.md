@@ -7,9 +7,5 @@
     - Next step: custom limit
     - Next step: maybe handle more errors
     - Decision made: Round time to 3dp (explain in comment and README)
-* Make sure requirements have all needed requirements and nothing else
-* General clean up - e.g. tests which have just one URL don't use variable name "url_1"
-* Docstrings for all tests and all methods
-* Something which tells me why I have no metrics etc. if I have empty file / 1 URL
-* Comment why time.monotonic
-* Make mypy pass
+
+* Timeout coverage
