@@ -1,1 +1,0 @@
-* Are exit codes all right? (Any which should be non-zero)
