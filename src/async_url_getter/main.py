@@ -147,9 +147,6 @@ def cli(file: Path, timeout: int) -> None:
     are less than two data points to calculate metrics.
     """
     url_list = file.read_text().splitlines()
-    if len(url_list) < 1:
-        sys.exit("File is empty")
-
     request_info = asyncio.run(
         run_multiple_requests(url_list=url_list, timeout=timeout)
     )

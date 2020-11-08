@@ -59,20 +59,6 @@ class TestCLI:
         assert expected_output in result.output
         assert result.exit_code == 0
 
-    def test_file_input_invalid(self, tmp_path: Path) -> None:
-        """
-        An empty file returns an error and the output is halted
-        """
-        example_file = tmp_path / "example_file.txt"
-        file_contents = ""
-        example_file.write_text(file_contents)
-        runner = CliRunner()
-        result = runner.invoke(
-            cli, [str(example_file)], catch_exceptions=False
-        )
-        expected_output = "File is empty\n"
-        assert expected_output in result.output
-        assert result.exit_code == 1
 
     def test_no_metrics(
         self, tmp_path: Path, mock_aioresponse: aioresponses

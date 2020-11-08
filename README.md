@@ -11,14 +11,14 @@ Tested on Python 3.8.
 
 Install the project requirements:
 ```
-pip install -r requirements.txt
+pip install .
 ```
 A path to a text file is passed as an argument - the file must be non-empty and contain at least one line.  An optional
 timeout can be specified as an integer, the default is 15 seconds. A sample `url_list.txt` file of 100 URLs is included.
 
 Run the program with an url_list and timeout of 10:
 ```
-python main.py url_list.txt -t 10
+async-url-getter url_list.txt -t 10
 ```
 In this example, there is a malformed URL, a non-existent server and a server that
 does not respond within the timeout:
@@ -81,7 +81,7 @@ a custom TCP connector, however this functionality is not easily testable.
 - The code is fully typed with `mypy` and linted with `flake8`:
 
 ```
-pytest --cov-fail-under 100 --cov tests/  --cov main 
+pytest --cov-fail-under 100 --cov tests/  --cov src/
 flake8 .
-mypy tests main.py
+mypy tests src
 ```
