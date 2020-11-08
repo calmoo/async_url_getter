@@ -1,16 +1,16 @@
 import asyncio
-import textwrap
-import click
 import sys
+import textwrap
 import time
-import aiohttp
-import click_pathlib
-
 from asyncio.exceptions import TimeoutError
-from statistics import mean, quantiles, median
-from aiohttp.client_exceptions import ClientConnectorError, InvalidURL
-from typing import List
 from pathlib import Path
+from statistics import mean, median, quantiles
+from typing import List
+
+import aiohttp
+import click
+import click_pathlib
+from aiohttp.client_exceptions import ClientConnectorError, InvalidURL
 
 
 class RequestInfo:
@@ -33,8 +33,8 @@ async def get(
     It returns ``RequestInfo`` containing the url the request was made to,
     the status code of the request and total time taken for the request to
     complete. If the request does not complete, an exception is raised and does
-    not return ``RequestInfo``. ``time.monotonic`` is used to avoid
-    system clock changes during timing.
+    not return ``RequestInfo``. ``time.monotonic`` is used to avoid the
+    effects of system clock changes during timing.
     """
     start_time_monotonic = time.monotonic()
     async with session.get(url=url, timeout=timeout) as response:
@@ -51,7 +51,7 @@ async def get(
     return request_stats
 
 
-async def main(url_list: List[str], timeout: int) -> List[RequestInfo]:
+async def run_multiple_requests(url_list: List[str], timeout: int) -> List[RequestInfo]:
     """
     This parses a list of urls from ``url_list`` and schedules a request
     for each url to be made asynchronously. As each request completes, a
@@ -114,10 +114,11 @@ class Metrics:
         """
         Generates metrics of request times and returns a string.
         """
-        mean_millis = round(self.mean * 1000, 3)
-        median_millis = round(self.median * 1000, 3)
+        rounding_factor = 3
+        mean_millis = round(self.mean * 1000, rounding_factor)
+        median_millis = round(self.median * 1000, rounding_factor)
         ninetieth_percentile_millis = round(
-            self.ninetieth_percentile * 1000, 3
+            self.ninetieth_percentile * 1000, rounding_factor
         )
         output_summary = textwrap.dedent(
             f"""\
@@ -147,7 +148,7 @@ def cli(file: Path, timeout: int) -> None:
     if len(url_list) < 1:
         sys.exit("File is empty")
 
-    request_info = asyncio.run(main(url_list=url_list, timeout=timeout))
+    request_info = asyncio.run(run_multiple_requests(url_list=url_list, timeout=timeout))
     if len(request_info) > 1:
         metrics = Metrics(request_info=request_info)
         print(metrics.summary())

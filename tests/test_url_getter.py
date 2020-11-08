@@ -1,28 +1,36 @@
+import asyncio
+import time
+from asyncio.exceptions import TimeoutError
+from pathlib import Path
+from socket import gaierror
+from textwrap import dedent
+from typing import Any, Iterator
+
+import aiohttp
 import pytest
 from _pytest.capture import CaptureFixture
 from aiohttp import ClientConnectorError, InvalidURL
-import time
-from main import get, main, cli, Metrics, RequestInfo
-import aiohttp
-from aioresponses import aioresponses
-from socket import gaierror
 from aiohttp.client_reqrep import ConnectionKey
-import asyncio
+from aioresponses import aioresponses
 from click.testing import CliRunner
-from textwrap import dedent
-from pathlib import Path, PosixPath
-from typing import Any
+
+from main import Metrics, RequestInfo, cli, get, run_multiple_requests
 
 
 @pytest.fixture
-def mock_aioresponse() -> aioresponses:
+def mock_aioresponse() -> Iterator[aioresponses]:
+    """
+    Yields a mock response object which allow us to make sure that tests do not
+    use the real internet.
+    Any requests made by ``aiohttp`` will be handled by this mock object.
+    """
     with aioresponses() as response:
         yield response
 
 
 class TestCLI:
     def test_file_input_valid(
-        self, tmp_path: PosixPath, mock_aioresponse: aioresponses
+        self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:
         """
         A file containing at least one line can be parsed
@@ -45,7 +53,7 @@ class TestCLI:
         assert expected_output in result.output
         assert result.exit_code == 0
 
-    def test_file_input_invalid(self, tmp_path: PosixPath) -> None:
+    def test_file_input_invalid(self, tmp_path: Path) -> None:
         """
         An empty file returns an error and the output is halted
         """
@@ -61,7 +69,7 @@ class TestCLI:
         assert result.exit_code == 1
 
     def test_no_metrics(
-        self, tmp_path: PosixPath, mock_aioresponse: aioresponses
+        self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:
         """
         Metrics are not returned without at least two data points
@@ -87,7 +95,7 @@ class TestCLI:
         assert result.exit_code == 0
 
     def test_metrics_output(
-        self, tmp_path: PosixPath, mock_aioresponse: aioresponses
+        self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:
         """
         Metrics are returned with at least two data points
@@ -115,7 +123,7 @@ class TestCLI:
         assert result.exit_code == 0
 
     def test_timeout_valid(
-        self, tmp_path: PosixPath, mock_aioresponse: aioresponses
+        self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:
         """
         An integer timeout value can be used
@@ -137,7 +145,7 @@ class TestCLI:
         assert result.exit_code == 0
 
     def test_timeout_invalid(
-        self, tmp_path: PosixPath, mock_aioresponse: aioresponses
+        self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:
         """
         A non-integer timeout value cannot be used
@@ -176,20 +184,8 @@ class TestGet:
         assert result.total_time < timeout
         assert result.status_code == status
 
-    async def test_timeout(self, mock_aioresponse: aioresponses) -> None:
-        """
-        A request to a valid URL exceeding a timeout raises an exception
-        """
-        session = aiohttp.ClientSession()
-        url = "https://google.com"
-        mock_aioresponse.get(url, exception=TimeoutError)
 
-        timeout = 2
-        with pytest.raises(TimeoutError):
-            await get(session=session, url=url, timeout=timeout)
-
-
-class TestMain:
+class TestRunMultipleRequests:
     async def test_concurrency(self, mock_aioresponse: aioresponses) -> None:
         """
         Multiple non-blocking requests to URLs can be made in parallel.
@@ -205,7 +201,7 @@ class TestMain:
         mock_aioresponse.get(url_1, callback=delay_request)
         mock_aioresponse.get(url_2, callback=delay_request)
         start = time.monotonic()
-        await main(url_list=urls, timeout=4)
+        await run_multiple_requests(url_list=urls, timeout=4)
         end = time.monotonic()
         time_taken = round(end - start)
         assert time_taken == request_delay
@@ -217,7 +213,7 @@ class TestMain:
         url = "foo.com"
         status = 200
         mock_aioresponse.get(url, status=status)
-        result = await main(url_list=[url], timeout=1)
+        result = await run_multiple_requests(url_list=[url], timeout=1)
         assert len(result) == 1
         request_info = result[0]
         assert request_info.status_code == status
@@ -235,7 +231,7 @@ class TestMain:
         urls = [url_1, url_2]
         mock_aioresponse.get(url_1, status=status_url_1)
         mock_aioresponse.get(url_2, status=status_url_2)
-        result = await main(url_list=urls, timeout=1)
+        result = await run_multiple_requests(url_list=urls, timeout=1)
 
         [request_info_1] = [info for info in result if info.url == url_1]
         [request_info_2] = [info for info in result if info.url == url_2]
@@ -268,7 +264,7 @@ class TestMain:
             connection_key=connection_key, os_error=os_error
         )
         mock_aioresponse.get(url, exception=exception)
-        result = await main(url_list=[url], timeout=1)
+        result = await run_multiple_requests(url_list=[url], timeout=1)
         assert result == []
         captured = capsys.readouterr()
         assert captured.out == "Connection error resolving foo.com\n"
@@ -283,7 +279,7 @@ class TestMain:
         url = "foo.com"
         exception = InvalidURL(url=url)
         mock_aioresponse.get(url, exception=exception)
-        result = await main(url_list=[url], timeout=1)
+        result = await run_multiple_requests(url_list=[url], timeout=1)
         assert result == []
         captured = capsys.readouterr()
         assert captured.out == "foo.com is an invalid URL\n"
@@ -317,7 +313,7 @@ class TestMain:
 
         mock_aioresponse.get(invalid_url, exception=exception)
         mock_aioresponse.get(valid_url, status=status)
-        result = await main(url_list=urls, timeout=1)
+        result = await run_multiple_requests(url_list=urls, timeout=1)
         assert len(result) == 1
         assert result[0].status_code == status
         assert result[0].url == valid_url
@@ -337,11 +333,23 @@ class TestMain:
 
         mock_aioresponse.get(invalid_url, exception=exception)
         mock_aioresponse.get(valid_url, status=status)
-        result = await main(url_list=urls, timeout=1)
+        result = await run_multiple_requests(url_list=urls, timeout=1)
         assert len(result) == 1
         assert result[0].status_code == status
         assert result[0].url == valid_url
 
+    async def test_timeout(self, mock_aioresponse: aioresponses, capsys: CaptureFixture) -> None:
+        """
+        A request to a valid URL exceeding a timeout raises an exception
+        """
+        session = aiohttp.ClientSession()
+        url = "https://google.com"
+        mock_aioresponse.get(url, exception=TimeoutError)
+
+        result = await run_multiple_requests(url_list=[url], timeout=1)
+        assert result == []
+        captured = capsys.readouterr()
+        assert captured.out == "Requested timed out after 1 seconds\n"
 
 class TestMetrics:
     def test_metrics(self) -> None:
