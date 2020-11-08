@@ -53,7 +53,7 @@ async def get(
 
 async def main(url_list: List[str], timeout: int) -> List[RequestInfo]:
     """
-    This parses a list of urls from ```url_list``` and schedules a request
+    This parses a list of urls from ``url_list`` and schedules a request
     for each url to be made asynchronously. As each request completes, a
     RequestInfo object is added to a list. Once all requests have
     completed or the ``timeout`` value specified has been exceeded, the list
@@ -72,10 +72,12 @@ async def main(url_list: List[str], timeout: int) -> List[RequestInfo]:
                 result = await task
             except TimeoutError:
                 print(f"Requested timed out after {timeout} seconds")
-            except ClientConnectorError:
-                print("Connection error")
-            except InvalidURL:
-                print("Invalid URL")
+            except ClientConnectorError as e:
+                url = e.host
+                print(f"Connection error resolving {url}")
+            except InvalidURL as e:
+                url = e.url
+                print(f"{url} is an invalid URL")
             else:
                 print(get_request_details(result))
                 results.append(result)

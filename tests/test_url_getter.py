@@ -271,7 +271,7 @@ class TestMain:
         result = await main(url_list=[url], timeout=1)
         assert result == []
         captured = capsys.readouterr()
-        assert captured.out == "Connection error\n"
+        assert captured.out == "Connection error resolving foo.com\n"
 
     async def test_invalid_url(
         self, mock_aioresponse: aioresponses, capsys: CaptureFixture
@@ -286,7 +286,7 @@ class TestMain:
         result = await main(url_list=[url], timeout=1)
         assert result == []
         captured = capsys.readouterr()
-        assert captured.out == "Invalid URL\n"
+        assert captured.out == "foo.com is an invalid URL\n"
 
     async def test_connection_error_then_valid_url(
         self, mock_aioresponse: aioresponses

@@ -26,8 +26,8 @@ does not respond within the timeout:
 Sample output:
 
 ```
-Invalid URL
-Connection error
+baidu.com is an invalid URL
+Connection error resolving www.youtubecom
 Request to http://www.google.co.in responded with 200 and took 85.508ms to complete
 Request to http://www.qq.com responded with 200 and took 112.648ms to complete
 Request to http://www.bing.com responded with 200 and took 112.218ms to complete
