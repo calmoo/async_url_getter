@@ -19,10 +19,8 @@ from async_url_getter.main import (
     RequestInfo,
     cli,
     get,
-    run_multiple_requests,
     make_requests_and_print_results,
 )
-
 
 
 @pytest.fixture
@@ -173,9 +171,10 @@ class TestGet:
         mock_aioresponse.get(valid_url, status=status)
         timeout = 10
         result = await get(session=session, url=valid_url, timeout=timeout)
-        assert result.url == valid_url
-        assert result.total_time < timeout
-        assert result.status_code == status
+        if isinstance(result, RequestInfo):
+            assert result.url == valid_url
+            assert result.total_time < timeout
+            assert result.status_code == status
 
 
 class TestRunMultipleRequests:
@@ -343,14 +342,21 @@ class TestRunMultipleRequests:
         url = "https://google.com"
         mock_aioresponse.get(url, exception=TimeoutError)
 
-        await make_requests_and_print_results(url_list=[url], timeout=1)
+        await make_requests_and_print_results(url_list=[url], timeout=2)
         captured = capsys.readouterr()
-        expected_output = "Requested timed out after 1 seconds\n"
+        expected_output = (
+            "Request to https://google.com timed out after 2 seconds\n"
+        )
         assert expected_output in captured.out
 
     async def test_unknown_error(
         self, mock_aioresponse: aioresponses, capsys: CaptureFixture
     ) -> None:
+        """
+        An exception that isn't handled is printed as an unknown error, with
+        the details of the exception. A WebSocketError is used as an example
+        here.
+        """
         aiohttp.ClientSession()
         url = "https://google.com"
         exception = WebSocketError(code=200, message="test")

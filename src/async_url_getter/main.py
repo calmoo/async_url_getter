@@ -5,7 +5,7 @@ from asyncio import Future
 from asyncio.exceptions import TimeoutError
 from pathlib import Path
 from statistics import mean, median, quantiles
-from typing import List, Union, Iterator
+from typing import Iterator, List, Union
 
 import aiohttp
 import click
@@ -46,10 +46,17 @@ class RequestErrorInfo:
         self.url = url
         self.timeout = timeout
 
-    def __str__(self):
+    def __str__(self) -> str:
         exception = self.exception
+        plural = ""
+        if self.timeout > 1:
+            plural = "s"
         if isinstance(exception, TimeoutError):
-            message = f"Requested timed out after {self.timeout} seconds"
+            url = self.url
+            timeout = self.timeout
+            message = (
+                f"Request to {url} timed out after {timeout} second{plural}"
+            )
         elif isinstance(exception, ClientConnectorError):
             url = self.url
             message = f"Connection error resolving {url}"
@@ -72,8 +79,9 @@ async def get(
     It returns ``RequestInfo`` containing the url the request was made to,
     the status code of the request and total time taken for the request to
     complete. If the request does not complete, an exception is raised and does
-    not return ``RequestInfo``. ``time.monotonic`` is used to avoid the
-    effects of system clock changes during timing.
+    returns ``RequestErrorInfo``.
+    ``time.monotonic`` is used to avoid the effects of system clock changes
+    during timing.
     """
     start_time_monotonic = time.monotonic()
     try:
@@ -95,13 +103,10 @@ async def run_multiple_requests(
     session: aiohttp.ClientSession, url_list: List[str], timeout: int
 ) -> Iterator[Future]:
     """
-    This parses a list of urls from ``url_list`` and schedules a request
-    for each url to be made asynchronously. As each request completes, a
-    RequestInfo object is added to a list. Once all requests have
-    completed or the ``timeout`` value specified has been exceeded, the list
-    of RequestInfo objects is returned.
-    Any exceptions raised from the get requests are handled here, and prints
-    a message to stdout.
+    Here each task is executed and an Iterator ``asyncio.as_completed`` is
+    returned.
+    A ``session`` object, ``url_list`` and ``timeout`` are needed to make
+    the requests.
     """
     tasks = []
     for url in url_list:
@@ -149,7 +154,15 @@ class Metrics:
         return output_summary
 
 
-async def make_requests_and_print_results(url_list, timeout):
+async def make_requests_and_print_results(
+    url_list: List[str], timeout: int
+) -> None:
+    """
+    This handled all responses returned from ``run_multiple_requests``
+    ``url_list`` and specified ``timeout`` is passed up the stack from here.
+    Each request is printed, and every successful request is added to a list
+    and a summary is generated after all requests have completed.
+    """
     async with aiohttp.ClientSession(auto_decompress=False) as session:
         tasks = await run_multiple_requests(
             url_list=url_list,
