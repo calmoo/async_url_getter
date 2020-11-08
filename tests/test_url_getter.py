@@ -9,7 +9,7 @@ from typing import Any, Iterator
 import aiohttp
 import pytest
 from _pytest.capture import CaptureFixture
-from aiohttp import ClientConnectorError, InvalidURL
+from aiohttp import ClientConnectorError, InvalidURL, WebSocketError
 from aiohttp.client_reqrep import ConnectionKey
 from aioresponses import aioresponses
 from click.testing import CliRunner
@@ -20,7 +20,9 @@ from async_url_getter.main import (
     cli,
     get,
     run_multiple_requests,
+    make_requests_and_print_results,
 )
+
 
 
 @pytest.fixture
@@ -192,26 +194,28 @@ class TestRunMultipleRequests:
         mock_aioresponse.get(url_1, callback=delay_request)
         mock_aioresponse.get(url_2, callback=delay_request)
         start = time.monotonic()
-        await run_multiple_requests(url_list=urls, timeout=4)
+        await make_requests_and_print_results(url_list=urls, timeout=4)
         end = time.monotonic()
         time_taken = round(end - start)
         assert time_taken == request_delay
 
-    async def test_valid_url(self, mock_aioresponse: aioresponses) -> None:
+    async def test_valid_url(
+        self, mock_aioresponse: aioresponses, capsys: CaptureFixture
+    ) -> None:
         """
         Details of a single request can be retrieved
         """
         url = "foo.com"
         status = 200
         mock_aioresponse.get(url, status=status)
-        result = await run_multiple_requests(url_list=[url], timeout=1)
-        assert len(result) == 1
-        request_info = result[0]
-        assert request_info.status_code == status
-        assert request_info.url == url
-        assert request_info.total_time < 1
+        await make_requests_and_print_results(url_list=[url], timeout=1)
+        captured = capsys.readouterr()
+        expected_output = "Request to foo.com responded with 200"
+        assert expected_output in captured.out
 
-    async def test_valid_urls(self, mock_aioresponse: aioresponses) -> None:
+    async def test_valid_urls(
+        self, mock_aioresponse: aioresponses, capsys: CaptureFixture
+    ) -> None:
         """
         Details of multiple requests can be retrieved
         """
@@ -222,16 +226,12 @@ class TestRunMultipleRequests:
         urls = [url_1, url_2]
         mock_aioresponse.get(url_1, status=status_url_1)
         mock_aioresponse.get(url_2, status=status_url_2)
-        result = await run_multiple_requests(url_list=urls, timeout=1)
-
-        [request_info_1] = [info for info in result if info.url == url_1]
-        [request_info_2] = [info for info in result if info.url == url_2]
-
-        assert request_info_1.total_time < 1
-        assert request_info_2.total_time < 1
-
-        assert request_info_1.status_code == status_url_1
-        assert request_info_2.status_code == status_url_2
+        await make_requests_and_print_results(url_list=urls, timeout=1)
+        captured = capsys.readouterr()
+        expected_output_1 = "Request to foo.com responded with 200"
+        expected_output_2 = "Request to bar.com responded with 201"
+        assert expected_output_1 in captured.out
+        assert expected_output_2 in captured.out
 
     async def test_connection_error(
         self, mock_aioresponse: aioresponses, capsys: CaptureFixture
@@ -255,10 +255,10 @@ class TestRunMultipleRequests:
             connection_key=connection_key, os_error=os_error
         )
         mock_aioresponse.get(url, exception=exception)
-        result = await run_multiple_requests(url_list=[url], timeout=1)
-        assert result == []
+        await make_requests_and_print_results(url_list=[url], timeout=1)
         captured = capsys.readouterr()
-        assert captured.out == "Connection error resolving foo.com\n"
+        expected_output = "Connection error resolving foo.com\n"
+        assert expected_output in captured.out
 
     async def test_invalid_url(
         self, mock_aioresponse: aioresponses, capsys: CaptureFixture
@@ -270,13 +270,13 @@ class TestRunMultipleRequests:
         url = "foo.com"
         exception = InvalidURL(url=url)
         mock_aioresponse.get(url, exception=exception)
-        result = await run_multiple_requests(url_list=[url], timeout=1)
-        assert result == []
+        await make_requests_and_print_results(url_list=[url], timeout=1)
         captured = capsys.readouterr()
-        assert captured.out == "foo.com is an invalid URL\n"
+        expected_output = "foo.com is an invalid URL\n"
+        assert expected_output in captured.out
 
     async def test_connection_error_then_valid_url(
-        self, mock_aioresponse: aioresponses
+        self, mock_aioresponse: aioresponses, capsys: CaptureFixture
     ) -> None:
         """
         The program can continue making requests in the event of a connection
@@ -304,13 +304,15 @@ class TestRunMultipleRequests:
 
         mock_aioresponse.get(invalid_url, exception=exception)
         mock_aioresponse.get(valid_url, status=status)
-        result = await run_multiple_requests(url_list=urls, timeout=1)
-        assert len(result) == 1
-        assert result[0].status_code == status
-        assert result[0].url == valid_url
+        await make_requests_and_print_results(url_list=urls, timeout=1)
+        expected_output_invalid = "Connection error resolving barcom\n"
+        expected_output_valid = "Request to foo.com responded with 200"
+        captured = capsys.readouterr()
+        assert expected_output_invalid in captured.out
+        assert expected_output_valid in captured.out
 
     async def test_invalid_url_then_valid_url(
-        self, mock_aioresponse: aioresponses
+        self, mock_aioresponse: aioresponses, capsys: CaptureFixture
     ) -> None:
         """
         The program can continue making requests in the event of an invalid
@@ -324,10 +326,12 @@ class TestRunMultipleRequests:
 
         mock_aioresponse.get(invalid_url, exception=exception)
         mock_aioresponse.get(valid_url, status=status)
-        result = await run_multiple_requests(url_list=urls, timeout=1)
-        assert len(result) == 1
-        assert result[0].status_code == status
-        assert result[0].url == valid_url
+        await make_requests_and_print_results(url_list=urls, timeout=1)
+        expected_output_invalid = "barcom is an invalid URL\n"
+        expected_output_valid = "Request to foo.com responded with 200"
+        captured = capsys.readouterr()
+        assert expected_output_invalid in captured.out
+        assert expected_output_valid in captured.out
 
     async def test_timeout(
         self, mock_aioresponse: aioresponses, capsys: CaptureFixture
@@ -339,10 +343,22 @@ class TestRunMultipleRequests:
         url = "https://google.com"
         mock_aioresponse.get(url, exception=TimeoutError)
 
-        result = await run_multiple_requests(url_list=[url], timeout=1)
-        assert result == []
+        await make_requests_and_print_results(url_list=[url], timeout=1)
         captured = capsys.readouterr()
-        assert captured.out == "Requested timed out after 1 seconds\n"
+        expected_output = "Requested timed out after 1 seconds\n"
+        assert expected_output in captured.out
+
+    async def test_unknown_error(
+        self, mock_aioresponse: aioresponses, capsys: CaptureFixture
+    ) -> None:
+        aiohttp.ClientSession()
+        url = "https://google.com"
+        exception = WebSocketError(code=200, message="test")
+        mock_aioresponse.get(url, exception=exception)
+        await make_requests_and_print_results(url_list=[url], timeout=1)
+        captured = capsys.readouterr()
+        expected_output = "Unknown error for https://google.com: test\n"
+        assert expected_output in captured.out
 
 
 class TestMetrics:
