@@ -338,11 +338,13 @@ class TestRunMultipleRequests:
         assert result[0].status_code == status
         assert result[0].url == valid_url
 
-    async def test_timeout(self, mock_aioresponse: aioresponses, capsys: CaptureFixture) -> None:
+    async def test_timeout(
+        self, mock_aioresponse: aioresponses, capsys: CaptureFixture
+    ) -> None:
         """
         A request to a valid URL exceeding a timeout raises an exception
         """
-        session = aiohttp.ClientSession()
+        aiohttp.ClientSession()
         url = "https://google.com"
         mock_aioresponse.get(url, exception=TimeoutError)
 
@@ -350,6 +352,7 @@ class TestRunMultipleRequests:
         assert result == []
         captured = capsys.readouterr()
         assert captured.out == "Requested timed out after 1 seconds\n"
+
 
 class TestMetrics:
     def test_metrics(self) -> None:

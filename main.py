@@ -51,7 +51,9 @@ async def get(
     return request_stats
 
 
-async def run_multiple_requests(url_list: List[str], timeout: int) -> List[RequestInfo]:
+async def run_multiple_requests(
+    url_list: List[str], timeout: int
+) -> List[RequestInfo]:
     """
     This parses a list of urls from ``url_list`` and schedules a request
     for each url to be made asynchronously. As each request completes, a
@@ -148,7 +150,9 @@ def cli(file: Path, timeout: int) -> None:
     if len(url_list) < 1:
         sys.exit("File is empty")
 
-    request_info = asyncio.run(run_multiple_requests(url_list=url_list, timeout=timeout))
+    request_info = asyncio.run(
+        run_multiple_requests(url_list=url_list, timeout=timeout)
+    )
     if len(request_info) > 1:
         metrics = Metrics(request_info=request_info)
         print(metrics.summary())
