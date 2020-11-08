@@ -133,10 +133,13 @@ class Metrics:
         return output_summary
 
 
-@click.command()
+@click.command(help="Run requests for a given file asynchronously.")
 @click.argument("file", type=click_pathlib.Path(exists=True))
 @click.option(
-    "--timeout", "-t", default=15, help="Maximum time for a request to finish"
+    "--timeout",
+    "-t",
+    default=15,
+    help="Maximum number of seconds for a request to finish.",
 )
 def cli(file: Path, timeout: int) -> None:
     """

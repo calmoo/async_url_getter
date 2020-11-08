@@ -59,7 +59,6 @@ class TestCLI:
         assert expected_output in result.output
         assert result.exit_code == 0
 
-
     def test_no_metrics(
         self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:

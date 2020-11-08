@@ -64,7 +64,9 @@ pytest
 
 ## Decisions made:
 
-- A default value of 15 seconds for the timeout was specified. Metrics are rounded to three decimal places.
+- A default value of 15 seconds for the timeout was specified. This can be specified with the `--timeout` option
+
+- Metrics are rounded to three decimal places for readability.
 
 - I used the `click` library for CLI functionality as it is easily testable compared to argparse.
 
