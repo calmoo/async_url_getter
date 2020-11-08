@@ -135,7 +135,7 @@ class TestCLI:
         )
         assert result.exit_code == 0
 
-    def test_timeout_invalid(
+    def test_timeout_float_invalid(
         self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:
         """
@@ -155,6 +155,30 @@ class TestCLI:
         result = runner.invoke(
             cli,
             [str(example_file), "--timeout", "2.5"],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 2
+
+    def test_timeout_range(
+        self, tmp_path: Path, mock_aioresponse: aioresponses
+    ) -> None:
+        """
+        A non-integer timeout value cannot be used
+        """
+        url = "http://google.com"
+        status = 200
+        mock_aioresponse.get(url, status=status)
+        example_file = tmp_path / "example_file.txt"
+        file_contents = dedent(
+            """\
+            http://google.com
+            """
+        )
+        example_file.write_text(file_contents)
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [str(example_file), "--timeout", "-1"],
             catch_exceptions=False,
         )
         assert result.exit_code == 2
@@ -390,3 +414,22 @@ class TestMetrics:
         expected_contents_file = Path(__file__).parent / "metrics_sample.txt"
         expected_contents = expected_contents_file.read_text()
         assert expected_contents == metrics.summary()
+
+    def test_no_metrics(self) -> None:
+        """
+        Metrics can be calculated with two or more data points.
+        For cleanliness and avoiding formatting headaches, a manually verified
+        print output is read from ``metrics_sample.txt`` and compared to
+        the output value from the code.
+        """
+        request_1 = RequestInfo(
+            url="foo",
+            status_code=200,
+            total_time=0.3534,
+        )
+        request_info = [request_1]
+        metrics = Metrics(request_info=request_info)
+        expected_output = (
+            "Two or more successful requests needed to generate metrics."
+        )
+        assert expected_output == metrics.summary()
