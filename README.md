@@ -13,7 +13,7 @@ Install the project requirements:
 ```
 pip install .
 ```
-A path to a text file is passed as an argument - the file must be non-empty and contain at least one line.  An optional
+A path to a text file is passed as an argument.  An optional
 timeout can be specified as an integer, the default is 15 seconds. A sample `url_list.txt` file of 100 URLs is included.
 
 Run the program with an url_list and timeout of 10:
@@ -21,7 +21,7 @@ Run the program with an url_list and timeout of 10:
 async-url-getter url_list.txt -t 10
 ```
 In this example, there is a malformed URL, a non-existent server and a server that
-does not respond within the timeout:
+does not respond within the timeout.
 
 Sample output:
 
@@ -40,7 +40,8 @@ Request to http://www.amazon.com responded with 200 and took 755.536ms to comple
 Request to http://www.twitter.com responded with 200 and took 1008.309ms to complete
 Request to http://www.taobao.com responded with 200 and took 1222.272ms to complete
 Request to http://www.weibo.com responded with 200 and took 3237.769ms to complete
-Requested timed out after 10 seconds
+Request to http://www.microsoftonline.com timed out after 10 seconds
+Request to http://www.rakuten.co.jp timed out after 10 seconds
 -----
 Mean response time = 654.694ms
 Median response time = 246.175ms
@@ -78,9 +79,9 @@ and to ensure reproducibility.
 - `aiohttp` was used as it is an actively maintained and popular library for making asynchronous HTTP requests.
 
 - There is a default connection limit of 100 requests using the `aiohttp` client. This can be adjusted by specifying
-a custom TCP connector, however this functionality is not easily testable.
+a custom TCP connector, however this functionality is not easily testable, so it was omitted.
  
-- The code is fully typed with `mypy` and linted with `flake8`:
+- The code has full test coverage, fully typed with `mypy` and linted with `flake8`:
 
 ```
 pytest --cov-fail-under 100 --cov tests/  --cov src/
