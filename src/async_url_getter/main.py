@@ -5,7 +5,7 @@ import time
 from asyncio.exceptions import TimeoutError
 from pathlib import Path
 from statistics import mean, median, quantiles
-from typing import List
+from typing import List, Union
 
 import aiohttp
 import click
@@ -23,10 +23,19 @@ class RequestInfo:
         self.status_code = status_code
         self.total_time = total_time
 
+class RequestErrorInfo:
+    """
+    """
+    def __init__(self, exception: Exception, url: str, timeout: int) -> None:
+        self.exception = exception
+        self.url = url
+        self.timeout = timeout
+
+
 
 async def get(
     session: aiohttp.ClientSession, url: str, timeout: int
-) -> RequestInfo:
+) -> Union[RequestInfo, RequestErrorInfo]:
     """
     This makes a non-blocking get request to the ``url`` provided.
     It times out after ``timeout`` seconds.
@@ -37,18 +46,23 @@ async def get(
     effects of system clock changes during timing.
     """
     start_time_monotonic = time.monotonic()
-    async with session.get(url=url, timeout=timeout) as response:
-        await response.read()
+    try:
+        async with session.get(url=url, timeout=timeout) as response:
+            await response.read()
+    except Exception as exc:
+        return RequestErrorInfo(
+            exception=exc,
+            url=url,
+            timeout=timeout
+        )
+    status_code = response.status
     end_time_monotonic = time.monotonic()
     total_time = end_time_monotonic - start_time_monotonic
-    status_code = response.status
-    request_stats = RequestInfo(
+    return RequestInfo(
         url=url,
         status_code=status_code,
         total_time=total_time,
     )
-
-    return request_stats
 
 
 async def run_multiple_requests(
@@ -70,23 +84,36 @@ async def run_multiple_requests(
             tasks.append(get(session=session, url=url, timeout=timeout))
 
         for task in asyncio.as_completed(tasks):
-            try:
-                result = await task
-            except TimeoutError:
-                print(f"Requested timed out after {timeout} seconds")
-            except ClientConnectorError as e:
-                url = e.host
-                print(f"Connection error resolving {url}")
-            except InvalidURL as e:
-                url = e.url
-                print(f"{url} is an invalid URL")
-            else:
-                print(get_request_details(result))
+            result = await task
+            if isinstance(result, RequestInfo):
+                message = get_request_details(result)
+                print(message)
                 results.append(result)
+            else:
+                message = get_error_details(result)
+                print(message)
 
         return results
 
 
+def get_error_details(error_info: RequestErrorInfo) -> str:
+
+    exception = error_info.exception
+    if isinstance(exception, TimeoutError):
+        message = (
+            f"Requested timed out after {error_info.timeout} seconds"
+        )
+    elif isinstance(exception, ClientConnectorError):
+        url = error_info.url
+        message = f"Connection error resolving {url}"
+    elif isinstance(exception, InvalidURL):
+        url = error_info.url
+        message = f"{url} is an invalid URL"
+    else:
+        url = error_info.url
+        message = f"Unknown error for {url}"
+
+    return message
 def get_request_details(result: RequestInfo) -> str:
     """
     Returns a human readable string using the details from ``RequestInfo``
@@ -153,6 +180,8 @@ def cli(file: Path, timeout: int) -> None:
     request_info = asyncio.run(
         run_multiple_requests(url_list=url_list, timeout=timeout)
     )
+
+
     if len(request_info) > 1:
         metrics = Metrics(request_info=request_info)
         print(metrics.summary())
