@@ -71,6 +71,8 @@ pytest
 - The tests are comprehensive and have thorough coverage. Mock requests were used to avoid making real-world requests
 and to ensure reproducibility.
 
+- This is hosted in a private repo, so I chose to set up Github workflows for CI.
+
 - `aiohttp` was used as it is an actively maintained and popular library for making asynchronous HTTP requests.
 
 - There is a default connection limit of 100 requests using the `aiohttp` client. This can be adjusted by specifying

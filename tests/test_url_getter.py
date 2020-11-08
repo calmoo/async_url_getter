@@ -14,7 +14,7 @@ from aiohttp.client_reqrep import ConnectionKey
 from aioresponses import aioresponses
 from click.testing import CliRunner
 
-from main import Metrics, RequestInfo, cli, get, run_multiple_requests
+from src import Metrics, RequestInfo, cli, get, run_multiple_requests
 
 
 @pytest.fixture
