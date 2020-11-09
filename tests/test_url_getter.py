@@ -16,7 +16,8 @@ from aioresponses import aioresponses
 from click.testing import CliRunner
 
 from async_url_getter.main import (RequestInfo, cli, get, get_metrics,
-                                   make_requests_and_print_results)
+                                   make_requests_and_print_results,
+                                   validate_and_add_scheme_to_urls)
 
 
 @pytest.fixture
@@ -286,12 +287,12 @@ class TestRunMultipleRequests:
         An exception can be raised a request is made to an invalid URL.
         """
 
-        url = "foo.com"
+        url = "foocom"
         exception = InvalidURL(url=url)
         mock_aioresponse.get(url, exception=exception)
         await make_requests_and_print_results(url_list=[url], timeout=1)
         captured = capsys.readouterr()
-        expected_output = "foo.com is an invalid URL\n"
+        expected_output = "foocom is an invalid URL\n"
         assert expected_output in captured.out
 
     async def test_connection_error_then_valid_url(
@@ -391,9 +392,6 @@ class TestMetrics:
     def test_metrics(self) -> None:
         """
         Metrics can be calculated with two or more data points.
-        For cleanliness and avoiding formatting headaches, a manually verified
-        print output is read from ``metrics_sample.txt`` and compared to
-        the output value from the code.
         """
         request_1 = RequestInfo(
             url="foo",
@@ -419,10 +417,7 @@ class TestMetrics:
 
     def test_no_metrics(self) -> None:
         """
-        Metrics can be calculated with two or more data points.
-        For cleanliness and avoiding formatting headaches, a manually verified
-        print output is read from ``metrics_sample.txt`` and compared to
-        the output value from the code.
+        Metrics are not calculated with less than two datapoints.
         """
         request_1 = RequestInfo(
             url="foo",
@@ -435,3 +430,44 @@ class TestMetrics:
             "Two or more successful requests needed to generate metrics."
         )
         assert expected_output == metrics
+
+
+class TestURLParsing:
+    def test_invalid_url(self) -> None:
+        """
+        A list containing URLs not prepended http:// can be modified
+        so that the broken URLs are fixed in place and returned as a new list.
+        """
+        url_list = [
+            "baidu.com",
+            "www.test.com",
+            "http://fb.com",
+            "https://google.com",
+        ]
+        expected_url_list = [
+            "http://baidu.com",
+            "http://www.test.com",
+            "http://fb.com",
+            "https://google.com",
+        ]
+        returned_url_list = validate_and_add_scheme_to_urls(url_list=url_list)
+        assert expected_url_list == returned_url_list
+
+    def test_valid_urls(self) -> None:
+        """
+        A list containing valid URLs only will not be modified.
+        """
+        url_list = [
+            "http://test.com",
+            "https://www.fb.com",
+            "https://www.google.com",
+        ]
+        returned_url_list = validate_and_add_scheme_to_urls(url_list=url_list)
+        assert url_list == returned_url_list
+
+    def test_empty_list(self) -> None:
+        """
+        If an empty list is supplied, the function returns an empty list.
+        """
+        returned_url_list = validate_and_add_scheme_to_urls([])
+        assert [] == returned_url_list

@@ -14,20 +14,19 @@ Install the project requirements:
 pip install .
 ```
 A path to a text file is passed as an argument.  An optional
-timeout can be specified as an integer, the default is 15 seconds. A sample `url_list.txt` file of 100 URLs is included.
+timeout can be specified as an integer, the default is 15 seconds and the minimum value is 1. 
+A sample `url_list.txt` file of 100 URLs is included.
 
 Run the program with an url_list and timeout of 10:
 ```
 async-url-getter url_list.txt -t 10
 ```
-In this example, there is a malformed URL, a non-existent server and a server that
-does not respond within the timeout.
+In this example, there is a malformed URL and a server that does not respond within the timeout.
 
 Sample output:
 
 ```
-baidu.com is an invalid URL
-Connection error resolving www.youtubecom
+Connection error resolving http://www.youtubecom
 Request to http://www.google.co.in responded with 200 and took 85.508ms to complete
 Request to http://www.qq.com responded with 200 and took 112.648ms to complete
 Request to http://www.bing.com responded with 200 and took 112.218ms to complete
@@ -71,14 +70,17 @@ pytest
 
 - I used the `click` library for CLI functionality as it is easily testable compared to argparse.
 
+- URLs that are not prefixed with `http://` or `https://` are fixed and prepended with `http://`. For example, 
+`test.com` would be parsed and modified in place to `http://test.com`. Requests made to a URL without this prefix
+would otherwise raise an InvalidURL exception. Python's `urllib` is not used here, as the `netloc` attribute of an 
+`urlparse` object is not properly assigned by urllib if it does not start with `//`. For simplicity's sake, simple
+string checking was used instead.
+[Reference](https://docs.python.org/3.7/library/urllib.parse.html?highlight=urlparse#url-parsing)
+
 - The tests are comprehensive and have thorough coverage. Mock requests were used to avoid making real-world requests
 and to ensure reproducibility.
 
 - This is hosted in a private repo, so I chose to set up Github workflows for CI.
-
-- A request made to an address that isn't prefixed with `http://` raises an InvalidURL exception.
-Each url would have to be parsed before a request to avoid this - which would add unnecessary overhead to the parsing logic.
-
 
 - `aiohttp` was used as it is an actively maintained and popular library for making asynchronous HTTP requests.
 

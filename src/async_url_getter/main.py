@@ -170,13 +170,24 @@ async def make_requests_and_print_results(
         print(get_metrics(request_info=successful_results))
 
 
+def validate_and_add_scheme_to_urls(url_list: List[str]) -> List[str]:
+    """
+    This checks each URL in the list and prepends "http://" to the URL
+    if it does not already exist.
+    """
+    for i, url in enumerate(url_list):
+        if not (url.startswith("http://") or url.startswith("https://")):
+            url_list[i] = "http://" + url
+    return url_list
+
+
 @click.command(help="Run requests for a given file asynchronously.")
 @click.argument("file", type=click_pathlib.Path(exists=True))
 @click.option(
     "--timeout",
     "-t",
     default=15,
-    type=click.IntRange(min=0),
+    type=click.IntRange(min=1),
     help="Maximum number of seconds for a request to finish.",
 )
 def cli(file: Path, timeout: int) -> None:
@@ -186,4 +197,5 @@ def cli(file: Path, timeout: int) -> None:
     complete.
     """
     url_list = file.read_text().splitlines()
-    asyncio.run(make_requests_and_print_results(url_list, timeout))
+    url_list_parsed = validate_and_add_scheme_to_urls(url_list)
+    asyncio.run(make_requests_and_print_results(url_list_parsed, timeout))
