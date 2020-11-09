@@ -65,7 +65,7 @@ pytest
 
 ## Decisions made:
 
-- A default value of 15 seconds for the timeout was specified. This can be specified with the `--timeout` option
+- A default value of 15 seconds for the timeout was specified. This can be specified with the `--timeout` option.
 
 - Metrics are rounded to three decimal places for readability.
 
@@ -78,8 +78,8 @@ and to ensure reproducibility.
 
 - `aiohttp` was used as it is an actively maintained and popular library for making asynchronous HTTP requests.
 
-- There is a default connection limit of 100 requests using the `aiohttp` client. This can be adjusted by specifying
-a custom TCP connector, however this functionality is not easily testable, so it was omitted.
+- There is a default connection limit of 100 simultaneous requests using the `aiohttp` client. In the future,
+custom connection limits could be implemented.
  
 - The code has full test coverage, fully typed with `mypy` and linted with `flake8`:
 

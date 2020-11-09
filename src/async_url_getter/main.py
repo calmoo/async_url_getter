@@ -25,7 +25,7 @@ class RequestInfo:
 
     def __str__(self) -> str:
         """
-        Returns a human readable string using the details from ``RequestInfo``
+        Returns a human readable string using the details from ``RequestInfo``.
         """
         rounded_time_millis = round(self.total_time * 1000, 3)
         output_string = (
@@ -38,7 +38,7 @@ class RequestInfo:
 
 class RequestErrorInfo:
     """
-    Details of an error
+    Details of an error.
     """
 
     def __init__(self, exception: Exception, url: str, timeout: int) -> None:
@@ -78,7 +78,7 @@ async def get(
     It times out after ``timeout`` seconds.
     It returns ``RequestInfo`` containing the url the request was made to,
     the status code of the request and total time taken for the request to
-    complete. If the request does not complete, an exception is raised and does
+    complete. If the request does not complete, an exception is raised and
     returns ``RequestErrorInfo``.
     ``time.monotonic`` is used to avoid the effects of system clock changes
     during timing.
@@ -115,43 +115,31 @@ async def run_multiple_requests(
     return asyncio.as_completed(tasks)
 
 
-class Metrics:
+def get_metrics(request_info: List[RequestInfo]) -> str:
     """
-    Creates statistics based on response times of all requests
+    Generates metrics of request times and returns a string.
     """
+    if len(request_info) < 2:
+        return "Two or more successful requests needed to generate metrics."
 
-    def __init__(self, request_info: List[RequestInfo]):
-        self.request_info = request_info
+    response_times = [item.total_time for item in request_info]
+    mean_response = mean(response_times)
+    median_response = median(response_times)
+    ninetieth_percentile = quantiles(response_times, n=10)[-1]
 
-    def summary(self) -> str:
-        """
-        Generates metrics of request times and returns a string.
-        """
-        if len(self.request_info) < 2:
-            return (
-                "Two or more successful requests needed to generate metrics."
-            )
-
-        response_times = [item.total_time for item in self.request_info]
-        mean_response = mean(response_times)
-        median_response = median(response_times)
-        ninetieth_percentile = quantiles(response_times, n=10)[-1]
-
-        rounding_factor = 3
-        mean_millis = round(mean_response * 1000, rounding_factor)
-        median_millis = round(median_response * 1000, rounding_factor)
-        ninetieth_percentile_millis = round(
-            ninetieth_percentile * 1000, rounding_factor
-        )
-        output_summary = textwrap.dedent(
-            f"""\
-            -----
-            Mean response time = {mean_millis}ms
-            Median response time = {median_millis}ms
-            90th percentile of response times = {ninetieth_percentile_millis}ms
-            """  # noqa: E501
-        )
-        return output_summary
+    rounding_factor = 3
+    mean_millis = round(mean_response * 1000, rounding_factor)
+    median_millis = round(median_response * 1000, rounding_factor)
+    ninetieth_percentile_millis = round(
+        ninetieth_percentile * 1000, rounding_factor
+    )
+    output_summary = textwrap.dedent(
+        f"""\
+        Mean response time = {mean_millis}ms
+        Median response time = {median_millis}ms
+        90th percentile of response times = {ninetieth_percentile_millis}ms"""  # noqa: E501
+    )
+    return output_summary
 
 
 async def make_requests_and_print_results(
@@ -178,9 +166,8 @@ async def make_requests_and_print_results(
             print(message)
             if isinstance(result, RequestInfo):
                 successful_results.append(result)
-
-        metrics = Metrics(request_info=successful_results)
-        print(metrics.summary())
+        print("-------")
+        print(get_metrics(request_info=successful_results))
 
 
 @click.command(help="Run requests for a given file asynchronously.")
@@ -200,7 +187,3 @@ def cli(file: Path, timeout: int) -> None:
     """
     url_list = file.read_text().splitlines()
     asyncio.run(make_requests_and_print_results(url_list, timeout))
-
-
-if __name__ == "__main__":  # pragma: no cover
-    cli()

@@ -1,4 +1,5 @@
 import asyncio
+import textwrap
 import time
 from asyncio.exceptions import TimeoutError
 from pathlib import Path
@@ -14,13 +15,8 @@ from aiohttp.client_reqrep import ConnectionKey
 from aioresponses import aioresponses
 from click.testing import CliRunner
 
-from async_url_getter.main import (
-    Metrics,
-    RequestInfo,
-    cli,
-    get,
-    make_requests_and_print_results,
-)
+from async_url_getter.main import (RequestInfo, cli, get, get_metrics,
+                                   make_requests_and_print_results)
 
 
 @pytest.fixture
@@ -63,7 +59,7 @@ class TestCLI:
         self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:
         """
-        Metrics are not returned without at least two data points
+        Metrics are not returned without at least two data points.
         """
         url = "http://google.com"
         status = 200
@@ -89,7 +85,7 @@ class TestCLI:
         self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:
         """
-        Metrics are returned with at least two data points
+        Metrics are returned with at least two data points.
         """
         url_1 = "http://google.com"
         url_2 = "http://test.com"
@@ -117,7 +113,7 @@ class TestCLI:
         self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:
         """
-        An integer timeout value can be used
+        An integer timeout value can be used.
         """
         url = "http://google.com"
         status = 200
@@ -139,7 +135,7 @@ class TestCLI:
         self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:
         """
-        A non-integer timeout value cannot be used
+        A non-integer timeout value cannot be used.
         """
         url = "http://google.com"
         status = 200
@@ -163,7 +159,7 @@ class TestCLI:
         self, tmp_path: Path, mock_aioresponse: aioresponses
     ) -> None:
         """
-        A non-integer timeout value cannot be used
+        A non-integer timeout value cannot be used.
         """
         url = "http://google.com"
         status = 200
@@ -187,7 +183,7 @@ class TestCLI:
 class TestGet:
     async def test_valid_url(self, mock_aioresponse: aioresponses) -> None:
         """
-        A request to a valid URL can be made
+        A request to a valid URL can be made.
         """
         session = aiohttp.ClientSession()
         valid_url = "https://google.com"
@@ -226,7 +222,7 @@ class TestRunMultipleRequests:
         self, mock_aioresponse: aioresponses, capsys: CaptureFixture
     ) -> None:
         """
-        Details of a single request can be retrieved
+        Details of a single request can be retrieved.
         """
         url = "foo.com"
         status = 200
@@ -240,7 +236,7 @@ class TestRunMultipleRequests:
         self, mock_aioresponse: aioresponses, capsys: CaptureFixture
     ) -> None:
         """
-        Details of multiple requests can be retrieved
+        Details of multiple requests can be retrieved.
         """
         url_1 = "foo.com"
         url_2 = "bar.com"
@@ -260,7 +256,7 @@ class TestRunMultipleRequests:
         self, mock_aioresponse: aioresponses, capsys: CaptureFixture
     ) -> None:
         """
-        An exception can be raised if a request results in failure
+        An exception can be raised if a request results in failure.
         """
         url = "foo.com"
         connection_key = ConnectionKey(
@@ -287,7 +283,7 @@ class TestRunMultipleRequests:
         self, mock_aioresponse: aioresponses, capsys: CaptureFixture
     ) -> None:
         """
-        An exception can be raised a request is made to an invalid URL
+        An exception can be raised a request is made to an invalid URL.
         """
 
         url = "foo.com"
@@ -303,7 +299,7 @@ class TestRunMultipleRequests:
     ) -> None:
         """
         The program can continue making requests in the event of a connection
-        error exception
+        error exception.
         """
 
         invalid_url = "barcom"
@@ -339,7 +335,7 @@ class TestRunMultipleRequests:
     ) -> None:
         """
         The program can continue making requests in the event of an invalid
-        URL exception
+        URL exception.
         """
         invalid_url = "barcom"
         valid_url = "foo.com"
@@ -360,7 +356,7 @@ class TestRunMultipleRequests:
         self, mock_aioresponse: aioresponses, capsys: CaptureFixture
     ) -> None:
         """
-        A request to a valid URL exceeding a timeout raises an exception
+        A request to a valid URL exceeding a timeout raises an exception.
         """
         aiohttp.ClientSession()
         url = "https://google.com"
@@ -410,10 +406,16 @@ class TestMetrics:
             total_time=0.3424,
         )
         request_info = [request_1, request_2]
-        metrics = Metrics(request_info=request_info)
-        expected_contents_file = Path(__file__).parent / "metrics_sample.txt"
-        expected_contents = expected_contents_file.read_text()
-        assert expected_contents == metrics.summary()
+        metrics = get_metrics(request_info=request_info)
+
+        expected_metrics = textwrap.dedent(
+            """\
+            Mean response time = 347.9ms
+            Median response time = 347.9ms
+            90th percentile of response times = 361.1ms"""
+            # noqa: E501
+        )
+        assert expected_metrics == metrics
 
     def test_no_metrics(self) -> None:
         """
@@ -428,8 +430,8 @@ class TestMetrics:
             total_time=0.3534,
         )
         request_info = [request_1]
-        metrics = Metrics(request_info=request_info)
+        metrics = get_metrics(request_info=request_info)
         expected_output = (
             "Two or more successful requests needed to generate metrics."
         )
-        assert expected_output == metrics.summary()
+        assert expected_output == metrics
