@@ -76,6 +76,10 @@ and to ensure reproducibility.
 
 - This is hosted in a private repo, so I chose to set up Github workflows for CI.
 
+- A request made to an address that isn't prefixed with `http://` raises an InvalidURL exception.
+Each url would have to be parsed before a request to avoid this - which would add unnecessary overhead to the parsing logic.
+
+
 - `aiohttp` was used as it is an actively maintained and popular library for making asynchronous HTTP requests.
 
 - There is a default connection limit of 100 simultaneous requests using the `aiohttp` client. In the future,
