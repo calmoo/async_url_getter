@@ -15,9 +15,14 @@ from aiohttp.client_reqrep import ConnectionKey
 from aioresponses import aioresponses
 from click.testing import CliRunner
 
-from async_url_getter.main import (RequestInfo, cli, get, get_metrics,
-                                   make_requests_and_print_results,
-                                   validate_and_add_scheme_to_urls)
+from async_url_getter.main import (
+    RequestInfo,
+    cli,
+    get,
+    get_metrics,
+    make_requests_and_print_results,
+    add_scheme_to_urls,
+)
 
 
 @pytest.fixture
@@ -450,7 +455,7 @@ class TestURLParsing:
             "http://fb.com",
             "https://google.com",
         ]
-        returned_url_list = validate_and_add_scheme_to_urls(url_list=url_list)
+        returned_url_list = add_scheme_to_urls(url_list=url_list)
         assert expected_url_list == returned_url_list
 
     def test_valid_urls(self) -> None:
@@ -462,12 +467,12 @@ class TestURLParsing:
             "https://www.fb.com",
             "https://www.google.com",
         ]
-        returned_url_list = validate_and_add_scheme_to_urls(url_list=url_list)
+        returned_url_list = add_scheme_to_urls(url_list=url_list)
         assert url_list == returned_url_list
 
     def test_empty_list(self) -> None:
         """
         If an empty list is supplied, the function returns an empty list.
         """
-        returned_url_list = validate_and_add_scheme_to_urls([])
+        returned_url_list = add_scheme_to_urls([])
         assert [] == returned_url_list
